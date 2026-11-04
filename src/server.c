@@ -7,7 +7,7 @@
 #include <netinet/in.h>
 
 #define PORT 8080
-#define MAX_EVENTS 5
+#define MAX_EVENTS 6
 
 int main() {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -46,7 +46,7 @@ int main() {
                 ev.data.fd = client_fd;
                 epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
                 
-                printf("-> Nuevo cliente conectado (fd: %d)\n", client_fd);
+                printf("-> Nuevo cliente (fd: %d)\n", client_fd);
             } 
            
             else {
