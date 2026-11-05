@@ -37,18 +37,17 @@ int main() {
         for (int i = 0; i < nfds; i++) {
             int current_fd = events[i].data.fd;
 		printf("currentfd %d\n",current_fd);
-         
+
             if (current_fd == server_fd) {
                 int client_fd = accept(server_fd, NULL, NULL);
-                
-         
+
                 ev.events = EPOLLIN;
                 ev.data.fd = client_fd;
                 epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
-                
-                printf("-> Nuevo cliente (fd: %d)\n", client_fd);
-            } 
-           
+
+                printf("Nuevo cliente (fd: %d)\n", client_fd);
+            }
+
             else {
                 char buffer[256];
 		ssize_t bytes_read = read(current_fd, buffer, sizeof(buffer) - 1);
@@ -56,8 +55,20 @@ int main() {
 		if (bytes_read > 0) {
     			buffer[bytes_read] = '\0';
     			printf("Mensaje recibido (fd: %d):\n%s\n", current_fd, buffer);
-	
-    			const char *response = 
+
+	                char method[16];
+        	        char path[128];
+
+                        int parsed = sscanf(buffer, "%15s %127s", method, path);
+
+                    if (parsed == 2) {
+                        printf("-> Método: %s\n", method);
+                        printf("-> Ruta:  %s\n", path);
+                    } else {
+                        printf("-> Error\n");
+                    }
+
+    			const char *response =
         		"HTTP/1.1 200 OK\r\n"
         		"Content-Type: text/html; charset=UTF-8\r\n"
         		"Content-Length: 44\r\n"
@@ -67,13 +78,11 @@ int main() {
     			write(current_fd, response, strlen(response));
 
     			close(current_fd);
-    
     			printf("Cliente respondido y desconectado (fd: %d)\n\n", current_fd);
                 } else {
                     	printf("Cliente desconectado o error (fd: %d)\n", current_fd);
                     	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, current_fd, NULL);
                     	close(current_fd);
-                   
                 }
             }
         }
