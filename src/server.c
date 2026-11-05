@@ -16,12 +16,12 @@ int main() {
         .sin_addr.s_addr = INADDR_ANY,
         .sin_port = htons(PORT)
     };
-    
+   	printf("FD Server: (fd: %d)\n", server_fd);
     bind(server_fd, (struct sockaddr *)&address, sizeof(address));
     listen(server_fd, SOMAXCONN);
 
     int epoll_fd = epoll_create1(0);
-
+	printf("FD Epol: %d\n", epoll_fd);
     struct epoll_event ev = {
         .events = EPOLLIN,
         .data.fd = server_fd
@@ -36,7 +36,7 @@ int main() {
 
         for (int i = 0; i < nfds; i++) {
             int current_fd = events[i].data.fd;
-
+		printf("currentfd %d\n",current_fd);
          
             if (current_fd == server_fd) {
                 int client_fd = accept(server_fd, NULL, NULL);
@@ -51,15 +51,28 @@ int main() {
            
             else {
                 char buffer[256];
-                int bytes = read(current_fd, buffer, sizeof(buffer) - 1);
+		ssize_t bytes_read = read(current_fd, buffer, sizeof(buffer) - 1);
 
-                if (bytes <= 0) {
-                    printf("<- Cliente desconectado (fd: %d)\n", current_fd);
-                    epoll_ctl(epoll_fd, EPOLL_CTL_DEL, current_fd, NULL);
-                    close(current_fd);
+		if (bytes_read > 0) {
+    			buffer[bytes_read] = '\0';
+    			printf("Mensaje recibido (fd: %d):\n%s\n", current_fd, buffer);
+	
+    			const char *response = 
+        		"HTTP/1.1 200 OK\r\n"
+        		"Content-Type: text/html; charset=UTF-8\r\n"
+        		"Content-Length: 44\r\n"
+        		"\r\n"
+        		"<html><body><h1>Hello world!</h1></body></html>";
+
+    			write(current_fd, response, strlen(response));
+
+    			close(current_fd);
+    
+    			printf("Cliente respondido y desconectado (fd: %d)\n\n", current_fd);
                 } else {
-                    buffer[bytes] = '\0';
-                    printf("Mensaje recibido del cliente (fd: %d):\n%s\n", current_fd, buffer);
+                    	printf("Cliente desconectado o error (fd: %d)\n", current_fd);
+                    	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, current_fd, NULL);
+                    	close(current_fd);
                    
                 }
             }
