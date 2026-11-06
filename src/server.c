@@ -5,27 +5,30 @@
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
-#define PORT 8080
 #define MAX_EVENTS 6
+#define QLEN              32
+
+int passivesock(const  char *service, const char *transport, int qlen);
 
 int main() {
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    struct sockaddr_in address = {
-        .sin_family = AF_INET,
-        .sin_addr.s_addr = INADDR_ANY,
-        .sin_port = htons(PORT)
-    };
-   	printf("FD Server: (fd: %d)\n", server_fd);
-    bind(server_fd, (struct sockaddr *)&address, sizeof(address));
-    listen(server_fd, SOMAXCONN);
+    const char *service = "8080";
+    const char *transport = "tcp";
+
+    int server_fd = passivesock(service,transport, QLEN);
+
+    printf("FD Server: (fd: %d)\n", server_fd);
 
     int epoll_fd = epoll_create1(0);
 	printf("FD Epol: %d\n", epoll_fd);
+
+
     struct epoll_event ev = {
         .events = EPOLLIN,
         .data.fd = server_fd
     };
+
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &ev);
 
 
@@ -62,16 +65,16 @@ int main() {
                         int parsed = sscanf(buffer, "%15s %127s", method, path);
 
                     if (parsed == 2) {
-                        printf("-> Método: %s\n", method);
-                        printf("-> Ruta:  %s\n", path);
+                        printf("Método: %s\n", method);
+                        printf("Ruta:  %s\n", path);
                     } else {
-                        printf("-> Error\n");
+                        printf("Error\n");
                     }
 
     			const char *response =
         		"HTTP/1.1 200 OK\r\n"
         		"Content-Type: text/html; charset=UTF-8\r\n"
-        		"Content-Length: 44\r\n"
+        		"Content-Length: 47\r\n"
         		"\r\n"
         		"<html><body><h1>Hello world!</h1></body></html>";
 
@@ -91,4 +94,39 @@ int main() {
     close(server_fd);
     close(epoll_fd);
     return 0;
+}
+
+int passivesock(const char *service, const char *transport, int qlen){
+
+	struct addrinfo hints;
+	struct addrinfo  *rp;
+	int s =-1;
+	int type = SOCK_STREAM;
+	int status;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = type;
+	hints.ai_protocol = 0;
+	hints.ai_flags = AI_PASSIVE;
+
+	status = getaddrinfo(NULL,service,&hints,&rp);
+
+	if (status != 0){
+		printf("error en getaddrinfo \n");
+			}
+	s = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+	if (s < 0 ){
+		printf("error en fd del socket\n");
+	}
+
+	int opt = 1;
+        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+	bind(s, rp->ai_addr, rp->ai_addrlen);
+	freeaddrinfo(rp);
+	listen(s, qlen);
+
+
+	return s;
+
 }
