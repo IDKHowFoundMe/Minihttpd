@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -13,6 +16,7 @@
 int passivesock(const  char *service, const char *transport, int qlen);
 
 int main() {
+	signal(SIGPIPE, SIG_IGN);
     const char *service = "8080";
     const char *transport = "tcp";
 
@@ -67,7 +71,7 @@ int main() {
 			if (p!=NULL && *method && *path && *protocol){
 
 				if (strcmp(method, "GET") != 0) {
-                                	printf("Método incorrecto %s\n", method);
+					printf("Método incorrecto %s\n", method);
                             		}
                             	else if (strcmp(protocol, "HTTP/1.1") != 0) {
                                 	printf("Protocolo incorrecto %s\n", protocol);
@@ -75,23 +79,61 @@ int main() {
 					printf("Método: %s\n", method);
         	                	printf("Ruta:  %s\n", path);
 					printf("Protocol %s\n", protocol);
-				}
-			} else {
+
+					char filepath[256];
+					if(strcmp(path, "/") == 0) {
+    						snprintf(filepath, sizeof(filepath), "www/index.html");
+					}else{
+
+						snprintf(filepath, sizeof(filepath), "www%s", path);
+						}
+
+
+					struct stat st;
+					if (stat(filepath, &st) == -1) {
+
+    						const char *not_found = "HTTP/1.1 404 Not Found\r\n"
+									"Content-Length: 13\r\n"
+									"\r\n"
+									"404 Not Found";
+    						write(current_fd, not_found, strlen(not_found));
+					}else{
+
+    						int file_fd = open(filepath, O_RDONLY);
+    						if (file_fd == -1) {
+							printf("error en el open");
+						}else{
+
+						const char *response_head =
+        					                "HTTP/1.1 200 OK\r\n"
+                        					"Content-Type: text/html; charset=UTF-8\r\n"
+                					        "Content-Length: %ld\r\n"
+                        					"\r\n";
+						dprintf(current_fd, response_head, st.st_size);
+
+						char file_buffer[1024];
+        					ssize_t bytes_read_file;
+
+						while ((bytes_read_file = read(file_fd, file_buffer, sizeof(file_buffer))) > 0) {
+						            ssize_t bytes_written = write(current_fd, file_buffer, bytes_read_file);
+								if (bytes_written == -1) {
+    									printf("Error al escribir");
+    									break;
+									}
+        						}
+							close(file_fd);
+						}
+						}
+					}
+					} else {
                         	printf("Error\n");
                     	}
 
-    			const char *response =
-        		"HTTP/1.1 200 OK\r\n"
-        		"Content-Type: text/html; charset=UTF-8\r\n"
-        		"Content-Length: 47\r\n"
-        		"\r\n"
-        		"<html><body><h1>Hello world!</h1></body></html>";
+				epoll_ctl(epoll_fd, EPOLL_CTL_DEL, current_fd, NULL);
+ 				close(current_fd);
+                                printf("Cliente respondido y desconectado (fd: %d)\n\n", current_fd);
 
-    			write(current_fd, response, strlen(response));
-
-    			close(current_fd);
-    			printf("Cliente respondido y desconectado (fd: %d)\n\n", current_fd);
-                } else {
+		} else {
                     	printf("Cliente desconectado o error (fd: %d)\n", current_fd);
                     	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, current_fd, NULL);
                     	close(current_fd);
