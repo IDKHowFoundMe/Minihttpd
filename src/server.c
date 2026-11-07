@@ -59,17 +59,26 @@ int main() {
     			buffer[bytes_read] = '\0';
     			printf("Mensaje recibido (fd: %d):\n%s\n", current_fd, buffer);
 
-	                char method[16];
-        	        char path[128];
+	                char *p = buffer;
+        	        char *method = strsep(&p," ");
+			char *path = strsep(&p, " ");
+			char *protocol = strsep(&p, " \r\n");
 
-                        int parsed = sscanf(buffer, "%15s %127s", method, path);
+			if (p!=NULL && *method && *path && *protocol){
 
-                    if (parsed == 2) {
-                        printf("Método: %s\n", method);
-                        printf("Ruta:  %s\n", path);
-                    } else {
-                        printf("Error\n");
-                    }
+				if (strcmp(method, "GET") != 0) {
+                                	printf("Método incorrecto %s\n", method);
+                            		}
+                            	else if (strcmp(protocol, "HTTP/1.1") != 0) {
+                                	printf("Protocolo incorrecto %s\n", protocol);
+                            	}else{
+					printf("Método: %s\n", method);
+        	                	printf("Ruta:  %s\n", path);
+					printf("Protocol %s\n", protocol);
+				}
+			} else {
+                        	printf("Error\n");
+                    	}
 
     			const char *response =
         		"HTTP/1.1 200 OK\r\n"
@@ -107,7 +116,7 @@ int passivesock(const char *service, const char *transport, int qlen){
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = type;
-	hints.ai_protocol = 0;
+	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_flags = AI_PASSIVE;
 
 	status = getaddrinfo(NULL,service,&hints,&rp);
