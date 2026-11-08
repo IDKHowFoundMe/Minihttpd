@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <linux/limits.h>
 
 #define MAX_EVENTS 6
 #define QLEN              32
@@ -104,20 +105,36 @@ int main() {
 						snprintf(filepath, sizeof(filepath), "www%s", path);
 						}
 
+					char verifiedclient_path[PATH_MAX];
+					char rootdir_path[PATH_MAX];
+					const char *not_found = "HTTP/1.1 404 Not Found\r\n"
+                                                                "Content-Length: 13\r\n"
+                                                                "\r\n"
+                                                                "404 Not Found";
 
-					struct stat st;
-					if (stat(filepath, &st) == -1) {
+					const char *forbidden = "HTTP/1.1 403 Forbidden\r\n"
+                        					"Content-Length: 13\r\n"
+                        					"\r\n"
+                        					"403 Forbidden";
 
-    						const char *not_found = "HTTP/1.1 404 Not Found\r\n"
-									"Content-Length: 13\r\n"
-									"\r\n"
-									"404 Not Found";
-    						write(current_fd, not_found, strlen(not_found));
+					if (realpath("www",rootdir_path)==NULL) {
+    						printf("Error en el directorio www\n");
+					}
+
+					if(realpath(filepath, verifiedclient_path)==NULL){
+						printf("error en la ruta no existe\n\n");
+						write(current_fd, not_found, strlen(not_found));
+
+					}else if (strncmp(verifiedclient_path, rootdir_path, strlen(rootdir_path)) != 0) {
+								printf("error la ruta path transversal (Error Forbidden)\n");
+								write(current_fd, forbidden, strlen(forbidden));
+
 					}else{
-
-    						int file_fd = open(filepath, O_RDONLY);
+						struct stat st;
+                                        	stat(verifiedclient_path, &st);
+    						int file_fd = open(verifiedclient_path, O_RDONLY);
     						if (file_fd == -1) {
-							printf("error en el open");
+							printf("error en el open\n");
 						}else{
 
 						const char *response_head =
@@ -126,7 +143,7 @@ int main() {
                 					        "Content-Length: %ld\r\n"
                         					"\r\n";
 
-						const char *mime_type = mime(filepath);
+						const char *mime_type = mime(verifiedclient_path);
 
 						dprintf(current_fd, response_head, mime_type, st.st_size);
 
@@ -136,7 +153,7 @@ int main() {
 						while ((bytes_read_file = read(file_fd, file_buffer, sizeof(file_buffer))) > 0) {
 						            ssize_t bytes_written = write(current_fd, file_buffer, bytes_read_file);
 								if (bytes_written == -1) {
-    									printf("Error al escribir");
+    									printf("Error al escribir\n");
     									break;
 									}
         						}
