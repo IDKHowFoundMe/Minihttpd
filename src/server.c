@@ -11,6 +11,7 @@
 #include <netdb.h>
 #include <linux/limits.h>
 #include "mime.h"
+#include "files.h"
 
 #define MAX_EVENTS 6
 #define QLEN              32
@@ -85,52 +86,43 @@ int main() {
         	                	printf("Ruta:  %s\n", path);
 					printf("Protocol %s\n", protocol);
 
-					char filepath[256];
-					if(strcmp(path, "/") == 0) {
-    						snprintf(filepath, sizeof(filepath), "www/index.html");
-					}else{
-
-						snprintf(filepath, sizeof(filepath), "www%s", path);
-						}
 
 					char verifiedclient_path[PATH_MAX];
-					char rootdir_path[PATH_MAX];
-					const char *not_found = "HTTP/1.1 404 Not Found\r\n"
+					struct stat st;
+					const char *not_foundr = "HTTP/1.1 404 Not Found\r\n"
                                                                 "Content-Length: 13\r\n"
                                                                 "\r\n"
                                                                 "404 Not Found";
 
-					const char *forbidden = "HTTP/1.1 403 Forbidden\r\n"
+					const char *forbiddenr = "HTTP/1.1 403 Forbidden\r\n"
                         					"Content-Length: 13\r\n"
                         					"\r\n"
                         					"403 Forbidden";
 
-					if (realpath("www",rootdir_path)==NULL) {
-    						printf("Error en el directorio www\n");
-					}
+					const char *response_head =
+                                                                "HTTP/1.1 200 OK\r\n"
+                                                                "Content-Type: %s\r\n"
+                                                                "Content-Length: %ld\r\n"
+                                                                "\r\n";
 
-					if(realpath(filepath, verifiedclient_path)==NULL){
-						printf("error en la ruta no existe\n\n");
-						write(current_fd, not_found, strlen(not_found));
+					int response=transversal_file(path,verifiedclient_path);
+					switch(response){
+						case -1 :
+                                                	printf("Error en el directorio www\n");
+								break;
+						case 404:
+							printf("error en la ruta no existe\n\n");
+                                                	write(current_fd, not_foundr, strlen(not_foundr));
+								break;
 
-					}else if (strncmp(verifiedclient_path, rootdir_path, strlen(rootdir_path)) != 0) {
-								printf("error la ruta path transversal (Error Forbidden)\n");
-								write(current_fd, forbidden, strlen(forbidden));
+						case 403:
+							 printf("error la ruta path transversal (Error Forbidden)\n");
+                                                                write(current_fd, forbiddenr, strlen(forbiddenr));
+								break;
 
-					}else{
-						struct stat st;
-                                        	stat(verifiedclient_path, &st);
-    						int file_fd = open(verifiedclient_path, O_RDONLY);
-    						if (file_fd == -1) {
-							printf("error en el open\n");
-						}else{
-
-						const char *response_head =
-        					                "HTTP/1.1 200 OK\r\n"
-								"Content-Type: %s\r\n"
-                					        "Content-Length: %ld\r\n"
-                        					"\r\n";
-
+					case  200:
+						int file_fd =  file_open(verifiedclient_path, &st);
+						if (file_fd==-1){ break;}
 						const char *mime_type = mime(verifiedclient_path);
 
 						dprintf(current_fd, response_head, mime_type, st.st_size);
@@ -146,7 +138,6 @@ int main() {
 									}
         						}
 							close(file_fd);
-						}
 						}
 					}
 					} else {
