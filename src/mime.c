@@ -1,5 +1,6 @@
 #include <string.h>
 #include <strings.h>
+#include "mime.h"
 
 typedef struct {
     const char *ext;
