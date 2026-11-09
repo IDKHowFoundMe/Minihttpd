@@ -52,15 +52,18 @@ int main() {
             int current_fd = events[i].data.fd;
 		printf("currentfd %d\n",current_fd);
 
-            if (current_fd == server_fd) {
-                int client_fd = accept(server_fd, NULL, NULL);
+		if(current_fd == server_fd) {
+                	int client_fd = accept(server_fd, NULL, NULL);
+			if(client_fd<0){
+				perror("error en el accept");
+			}else{
+                		ev.events = EPOLLIN;
+                		ev.data.fd = client_fd;
+                		epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
 
-                ev.events = EPOLLIN;
-                ev.data.fd = client_fd;
-                epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
-
-                printf("Nuevo cliente (fd: %d)\n", client_fd);
-            }
+                		printf("Nuevo cliente (fd: %d)\n", client_fd);
+            		}
+		}
 
             else {
 		printf("Continuacion del cliente\n");
@@ -74,7 +77,6 @@ int main() {
 				epoll_ctl(epoll_fd, EPOLL_CTL_DEL, current_fd, NULL);
                 		close(current_fd);
                 		printf("Cliente respondido y desconectado (fd: %d)\n\n", current_fd);
-
 			} else {
         	            	printf("Cliente desconectado o error (fd: %d)\n", current_fd);
                 	    	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, current_fd, NULL);
@@ -106,18 +108,29 @@ int passivesock(const char *service, const char *transport, int qlen){
 	status = getaddrinfo(NULL,service,&hints,&rp);
 
 	if (status != 0){
-		printf("error en getaddrinfo \n");
+		perror("error en getaddrinfo \n");
+		exit(EXIT_FAILURE);
 			}
 	s = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 	if (s < 0 ){
-		printf("error en fd del socket\n");
+		perror("error en fd del socket\n");
+		exit(EXIT_FAILURE);
 	}
 
 	int opt = 1;
         setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-	bind(s, rp->ai_addr, rp->ai_addrlen);
+
+	if(bind(s, rp->ai_addr, rp->ai_addrlen) < 0){
+		perror("error en el bind");
+		exit(EXIT_FAILURE);
+		}
+
 	freeaddrinfo(rp);
-	listen(s, qlen);
+
+	if(listen(s, qlen)<0){
+		perror("error en el listen");
+		exit(EXIT_FAILURE);
+		}
 
 
 	return s;

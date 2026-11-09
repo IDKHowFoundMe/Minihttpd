@@ -37,8 +37,8 @@ int  file_open(const char *verifiedclient_path, struct stat *st){
 		stat(verifiedclient_path, st);
 		int file_fd = open(verifiedclient_path, O_RDONLY);
                 if (file_fd == -1) {
-                          printf("error en el open\n");
-			  return error;
+                	perror("error en el open\n");
+			return error;
                 }else{
 			return file_fd;
 		}

@@ -73,13 +73,17 @@ void response_HTTP(int current_fd, const char *buffer){
                            break;
                 case 404:
                          printf("error en la ruta no existe\n\n");
-                         write(current_fd, not_foundr, strlen(not_foundr));
-                           break;
+                         if(write(current_fd, not_foundr, strlen(not_foundr)) < 0){
+				perror("error al escribir");
+                           	break;
+				}
 
                 case 403:
                         printf("error la ruta path transversal (Error Forbidden)\n");
-                        write(current_fd, forbiddenr, strlen(forbiddenr));
-                         break;
+                        if(write(current_fd, forbiddenr, strlen(forbiddenr)) < 0){
+                         	perror("error al escribir");
+				break;
+				}
 
 		case  200:
                         int file_fd =  file_open(verifiedclient_path, &st);
@@ -94,7 +98,7 @@ void response_HTTP(int current_fd, const char *buffer){
                         while ((bytes_read_file = read(file_fd, file_buffer, sizeof(file_buffer))) > 0) {
                             ssize_t bytes_written = write(current_fd, file_buffer, bytes_read_file);
                             if (bytes_written == -1) {
-                                     printf("Error al escribir\n");
+                                     perror("error al escribir");
                                      break;
                                      }
                           }
