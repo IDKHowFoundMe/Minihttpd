@@ -63,7 +63,7 @@ int main() {
             }
 
             else {
-		printf("No es nuevo cliente");
+		printf("Continuacion del cliente\n");
                 char buffer[256];
 		ssize_t bytes_read = read(current_fd, buffer, sizeof(buffer) - 1);
 
