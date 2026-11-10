@@ -74,19 +74,20 @@ char *parse(const char *buffer){
 void response_HTTP(int current_fd, const char *buffer){
 
 		char *path  = parse(buffer);
+
+		if(path == NULL){
+                       printf("Protocolo o metodo mal implementado");
+                        if(write(current_fd, method_not_allowed, strlen(method_not_allowed))<0){
+                                perror("error al escribir");
+                                        }
+                       return;}
+
 		if(strcmp(path, "400") == 0){
 			printf("Parse mal implementado");
 			if(write(current_fd, bad_request, strlen(bad_request)) < 0){
 				perror("Error al escribir");
 				}
 				return;}
-
-		if(path == NULL){
-                       printf("Protocolo o metodo mal implementado");
-			if(write(current_fd, method_not_allowed, strlen(method_not_allowed))<0){
-				perror("error al escribir");
-					}
-                       return;}
 
 		char verifiedclient_path[PATH_MAX];
                 struct stat st;
