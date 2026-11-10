@@ -2,7 +2,8 @@
 #define FILES_H
 #include <sys/stat.h>
 
-	#define error -1
+
+	#define internalServerError 500
 	#define notFound  404
 	#define forbidden 403
 	#define fileOk 200

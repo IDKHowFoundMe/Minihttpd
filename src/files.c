@@ -18,7 +18,7 @@ int transversal_file(const char *path, char *verifiedclient_path){
                 char rootdir_path[PATH_MAX];
 
 		if (realpath("www",rootdir_path)==NULL) {
-			return error;
+			return internalServerError;
 		}
 
 		if(realpath(filepath, verifiedclient_path)==NULL){
@@ -38,7 +38,7 @@ int  file_open(const char *verifiedclient_path, struct stat *st){
 		int file_fd = open(verifiedclient_path, O_RDONLY);
                 if (file_fd == -1) {
                 	perror("error en el open\n");
-			return error;
+			return internalServerError;
                 }else{
 			return file_fd;
 		}

@@ -24,6 +24,20 @@ static const char *ok_response ="HTTP/1.1 200 OK\r\n"
                          "Content-Length: %ld\r\n"
                          "\r\n";
 
+static const char *bad_request="HTTP/1.1 400 Bad Request\r\n"
+                             	"Content-Length: 15\r\n"
+                             	"\r\n"
+                             	"400 Bad Request";
+
+static const char *method_not_allowed = "HTTP/1.1 405 Method Not Allowed\r\n"
+                             		"Content-Length: 22\r\n"
+                             		"\r\n"
+                             		"405 Method Not Allowed";
+
+static const char *Error = "HTTP/1.1 500 Internal Server Error\r\n"
+                             "Content-Length: 25\r\n"
+                             "\r\n"
+                             "500 Internal Server Error";
 
 char *parse(const char *buffer){
 	char buffer_copy[256];
@@ -33,7 +47,8 @@ char *parse(const char *buffer){
 
 	char *p = buffer_copy;
         char *method = strsep(&p," ");
-        char *path = strsep(&p, " ");
+        char *errorparse = "400";
+	char *path = strsep(&p, " ");
         char *protocol = strsep(&p, " \r\n");
 
 	if (p!=NULL && *method && *path && *protocol){
@@ -52,15 +67,25 @@ char *parse(const char *buffer){
 				return path;
 			}
 	}
-	return NULL;
+	return errorparse;
 }
 
 
 void response_HTTP(int current_fd, const char *buffer){
 
 		char *path  = parse(buffer);
+		if(strcmp(path, "400") == 0){
+			printf("Parse mal implementado");
+			if(write(current_fd, bad_request, strlen(bad_request)) < 0){
+				perror("Error al escribir");
+				}
+				return;}
+
 		if(path == NULL){
                        printf("Protocolo o metodo mal implementado");
+			if(write(current_fd, method_not_allowed, strlen(method_not_allowed))<0){
+				perror("error al escribir");
+					}
                        return;}
 
 		char verifiedclient_path[PATH_MAX];
@@ -68,9 +93,11 @@ void response_HTTP(int current_fd, const char *buffer){
 		int response=transversal_file(path,verifiedclient_path);
 
 		switch(response){
-		case -1 :
+		case 500 :
                            printf("Error en el directorio www\n");
-                           break;
+			if(write(current_fd, Error, strlen(Error)) <0){
+				perror("error al escribir");
+                           break;}
                 case 404:
                          printf("error en la ruta no existe\n\n");
                          if(write(current_fd, not_foundr, strlen(not_foundr)) < 0){
@@ -87,7 +114,11 @@ void response_HTTP(int current_fd, const char *buffer){
 
 		case  200:
                         int file_fd =  file_open(verifiedclient_path, &st);
-                        if (file_fd==-1){ break;}
+                        if (file_fd==500){
+					if(write(current_fd, Error, strlen(Error)) < 0 ){
+					 perror("Error al escribir");
+						break;}
+						}
                       	const char *mime_type = mime(verifiedclient_path);
 
                         dprintf(current_fd, ok_response, mime_type, st.st_size);
