@@ -1,3 +1,4 @@
+#include <sys/socket.h>
 #include <stdio.h>
 #include <signal.h>
 #include <sys/stat.h>
@@ -53,7 +54,7 @@ int main() {
 		printf("currentfd %d\n",current_fd);
 
 		if(current_fd == server_fd) {
-                	int client_fd = accept(server_fd, NULL, NULL);
+                	int client_fd = accept4(server_fd, NULL, NULL,SOCK_NONBLOCK);
 			if(client_fd<0){
 				perror("error en el accept");
 			}else{
@@ -95,14 +96,16 @@ int passivesock(const char *service, const char *transport, int qlen){
 
 	struct addrinfo hints;
 	struct addrinfo  *rp;
+	struct protoent *pe=getprotobyname(transport);
 	int s =-1;
 	int type = SOCK_STREAM;
 	int status;
 
+
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = type;
-	hints.ai_protocol = IPPROTO_TCP;
+        hints.ai_protocol = pe->p_proto;
 	hints.ai_flags = AI_PASSIVE;
 
 	status = getaddrinfo(NULL,service,&hints,&rp);
@@ -111,7 +114,7 @@ int passivesock(const char *service, const char *transport, int qlen){
 		perror("error en getaddrinfo \n");
 		exit(EXIT_FAILURE);
 			}
-	s = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+	s = socket(rp->ai_family, rp->ai_socktype | SOCK_NONBLOCK, rp->ai_protocol);
 	if (s < 0 ){
 		perror("error en fd del socket\n");
 		exit(EXIT_FAILURE);

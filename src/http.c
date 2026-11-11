@@ -74,7 +74,6 @@ char *parse(const char *buffer){
 void response_HTTP(int current_fd, const char *buffer){
 
 		char *path  = parse(buffer);
-
 		if(path == NULL){
                        printf("Protocolo o metodo mal implementado");
                         if(write(current_fd, method_not_allowed, strlen(method_not_allowed))<0){
@@ -99,12 +98,14 @@ void response_HTTP(int current_fd, const char *buffer){
 			if(write(current_fd, Error, strlen(Error)) <0){
 				perror("error al escribir");
                            break;}
+				break;
                 case 404:
                          printf("error en la ruta no existe\n\n");
                          if(write(current_fd, not_foundr, strlen(not_foundr)) < 0){
 				perror("error al escribir");
                            	break;
 				}
+				break;
 
                 case 403:
                         printf("error la ruta path transversal (Error Forbidden)\n");
@@ -112,6 +113,7 @@ void response_HTTP(int current_fd, const char *buffer){
                          	perror("error al escribir");
 				break;
 				}
+				break;
 
 		case  200:
                         int file_fd =  file_open(verifiedclient_path, &st);
@@ -122,14 +124,24 @@ void response_HTTP(int current_fd, const char *buffer){
 						}
                       	const char *mime_type = mime(verifiedclient_path);
 
-                        dprintf(current_fd, ok_response, mime_type, st.st_size);
+			char header[512];
+			snprintf(header, sizeof(header), ok_response, mime_type, st.st_size);
+
+			int w=write(current_fd, header, strlen(header));
+
+			if (w <= 0) {
+					perror("error");
+            				break;}
 
                         char file_buffer[1024];
                         ssize_t bytes_read_file;
 
                         while ((bytes_read_file = read(file_fd, file_buffer, sizeof(file_buffer))) > 0) {
+				if (bytes_read_file <0){
+						perror("error");
+						break;}
                             ssize_t bytes_written = write(current_fd, file_buffer, bytes_read_file);
-                            if (bytes_written == -1) {
+                            if (bytes_written < 0) {
                                      perror("error al escribir");
                                      break;
                                      }
