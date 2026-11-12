@@ -39,7 +39,7 @@ static const char *Error = "HTTP/1.1 500 Internal Server Error\r\n"
                              "\r\n"
                              "500 Internal Server Error";
 
-char *parse(const char *buffer){
+int parse(const char *buffer, char *path, int sizepath){
 	char buffer_copy[256];
 
 	strncpy(buffer_copy, buffer, sizeof(buffer_copy) - 1);
@@ -47,41 +47,52 @@ char *parse(const char *buffer){
 
 	char *p = buffer_copy;
         char *method = strsep(&p," ");
-        char *errorparse = "400";
-	char *path = strsep(&p, " ");
+	char *path_receive = strsep(&p, " ");
         char *protocol = strsep(&p, " \r\n");
 
-	if (p!=NULL && *method && *path && *protocol){
+	if (p!=NULL && *method && *path_receive && *protocol){
             		 if (strcmp(method, "GET") != 0) {
                          printf("Método incorrecto %s\n", method);
-			return NULL;
+			return 405;
                     	}
-                 	else if (strcmp(protocol, "HTTP/1.1") != 0) {
+                 	if (strcmp(protocol, "HTTP/1.1") != 0) {
                           printf("Protocolo incorrecto %s\n", protocol);
-				return NULL;
-                    	}else{
+				return 400;}
+                    	 int host=0;
+			 char *line;
+				while ((line = strsep(&p, "\r\n")) != NULL) {
+                                if (strlen(line) > 0) {
+                                        if (strncasecmp(line, "Host:", 5) == 0) {
+                                                host=1;
+                                                break;}
+                                        }
+                                }
+			if(host){
                           printf("Método: %s\n", method);
                           printf("Ruta:  %s\n", path);
                           printf("Protocol %s\n", protocol);
-
-				return path;
-			}
-	}
-	return errorparse;
+			  printf("Host Validado");
+			  strncpy(path, path_receive, sizepath);
+				return 200;
+			}else{
+				return 400;}
+		}else{
+			return 400;
+		}
 }
 
 
 void response_HTTP(int current_fd, const char *buffer){
-
-		char *path  = parse(buffer);
-		if(path == NULL){
-                       printf("Protocolo o metodo mal implementado");
+		char path[PATH_MAX];
+		int parse_result = parse(buffer, path, sizeof(path));
+		if(parse_result == 405){
+                       printf("Metodo mal implementado");
                         if(write(current_fd, method_not_allowed, strlen(method_not_allowed))<0){
                                 perror("error al escribir");
                                         }
                        return;}
 
-		if(strcmp(path, "400") == 0){
+		if(parse_result== 400){
 			printf("Parse mal implementado");
 			if(write(current_fd, bad_request, strlen(bad_request)) < 0){
 				perror("Error al escribir");
