@@ -23,11 +23,11 @@
 int passivesock(const  char *service, const char *transport, int qlen);
 
 
-int main() {
-	signal(SIGPIPE, SIG_IGN);
-    const char *service = "8080";
+int server(int puerto) {
+    signal(SIGPIPE, SIG_IGN);
     const char *transport = "tcp";
-
+    char service[6];
+    snprintf(service, sizeof(service), "%d", puerto);
     int server_fd = passivesock(service,transport, QLEN);
 
     printf("FD Server: (fd: %d)\n", server_fd);
@@ -89,7 +89,7 @@ int main() {
 
     close(server_fd);
     close(epoll_fd);
-    return 0;
+	return 0;
 }
 
 int passivesock(const char *service, const char *transport, int qlen){

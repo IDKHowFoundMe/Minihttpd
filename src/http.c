@@ -78,7 +78,7 @@ int parse(const char *buffer, char *path, int sizepath){
                           printf("Método: %s\n", method);
                           printf("Ruta:  %s\n", path);
                           printf("Protocol %s\n", protocol);
-			  printf("Host Validado");
+			  printf("Host Validado\n");
 				return 200;
 			}else{
 				return 400;}
