@@ -15,8 +15,6 @@ static const mime_map mime_types[] = {
     { ".jpg",  "image/jpeg" }
 };
 
-
-
 const char* mime(const char *filepath) {
     const char *ext = strrchr(filepath, '.');
     if (!ext){
@@ -28,6 +26,5 @@ const char* mime(const char *filepath) {
             return mime_types[i].mime_type;
         }
     }
-
     return "text/plain; charset=UTF-8";
 }

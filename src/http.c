@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <unistd.h>
-#include <sys/stat.h>
-#include <linux/limits.h>
 #include "http.h"
 #include "files.h"
 #include "mime.h"
@@ -47,7 +46,6 @@ static const char *Error = "HTTP/1.1 500 Internal Server Error\r\n"
 
 int parse(const char *buffer, char *path, int sizepath){
 	char buffer_copy[256];
-
 	strncpy(buffer_copy, buffer, sizeof(buffer_copy) - 1);
    	buffer_copy[sizeof(buffer_copy) - 1] = '\0';
 
@@ -57,13 +55,13 @@ int parse(const char *buffer, char *path, int sizepath){
         char *protocol = strsep(&p, " \r\n");
 
 	if (p!=NULL && *method && *path_receive && *protocol){
-            		 if (strcmp(method, "GET") != 0) {
-                         printf("Método incorrecto %s\n", method);
+			if (strcmp(method, "GET") != 0) {
+                        printf("Método incorrecto %s\n", method);
 			return 405;
                     	}
                  	if (strcmp(protocol, "HTTP/1.1") != 0) {
-                          printf("Protocolo incorrecto %s\n", protocol);
-				return 400;}
+                        printf("Version incorrecta %s\n", protocol);
+			return 400;}
                     	 int host=0;
 			 char *line;
 				while ((line = strsep(&p, "\r\n")) != NULL) {
@@ -92,16 +90,16 @@ void response_HTTP(int current_fd, const char *buffer){
 		char path[PATH_MAX];
 		int parse_result = parse(buffer, path, sizeof(path));
 		if(parse_result == 405){
-                       printf("Metodo mal implementado");
+                       printf("Metodo mal implementado\n");
                         if(write(current_fd, method_not_allowed, strlen(method_not_allowed))<0){
-                                perror("error al escribir");
+                                perror("Error al escribir 405");
                                         }
                        return;}
 
 		if(parse_result== 400){
-			printf("Parse mal implementado");
+			printf("Parse mal implementado\n");
 			if(write(current_fd, bad_request, strlen(bad_request)) < 0){
-				perror("Error al escribir");
+				perror("Error al escribir 400");
 				}
 				return;}
 
@@ -111,23 +109,23 @@ void response_HTTP(int current_fd, const char *buffer){
 
 		switch(response){
 		case 500 :
-                           printf("Error en el directorio www\n");
+                           printf("Error en el directorio local www\n");
 			if(write(current_fd, Error, strlen(Error)) <0){
-				perror("error al escribir");
+				perror("Error al escribir 500");
                            break;}
 				break;
                 case 404:
-                         printf("error en la ruta no existe\n\n");
+                         printf("Error en la ruta no existe\n");
                          if(write(current_fd, not_foundr, strlen(not_foundr)) < 0){
-				perror("error al escribir");
+				perror("Error al escribir 404");
                            	break;
 				}
 				break;
 
                 case 403:
-                        printf("error la ruta path transversal (Error Forbidden)\n");
+                        printf("Error la ruta path transversal\n");
                         if(write(current_fd, forbiddenr, strlen(forbiddenr)) < 0){
-                         	perror("error al escribir");
+                         	perror("Error al escribir 403");
 				break;
 				}
 				break;
@@ -136,7 +134,7 @@ void response_HTTP(int current_fd, const char *buffer){
                         int file_fd =  file_open(verifiedclient_path, &st);
                         if (file_fd==500){
 					if(write(current_fd, Error, strlen(Error)) < 0 ){
-					 perror("Error al escribir");
+					 perror("Error al escribir 200");
 						break;}
 						}
                       	const char *mime_type = mime(verifiedclient_path);
@@ -146,7 +144,7 @@ void response_HTTP(int current_fd, const char *buffer){
 
 			int w=write(current_fd, header, strlen(header));
 			if (w <= 0) {
-					perror("error");
+					perror("Error al escribir header");
             				break;}
 
                         char file_buffer[1024];
@@ -154,11 +152,11 @@ void response_HTTP(int current_fd, const char *buffer){
 
                         while ((bytes_read_file = read(file_fd, file_buffer, sizeof(file_buffer))) > 0) {
 				if (bytes_read_file <0){
-						perror("error");
+						perror("Error al leer datos");
 						break;}
                             ssize_t bytes_written = write(current_fd, file_buffer, bytes_read_file);
                             if (bytes_written < 0) {
-                                     perror("error al escribir");
+                                     perror("Error al escribir envio");
                                      break;
                                      }
                           }

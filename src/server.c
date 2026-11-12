@@ -1,8 +1,6 @@
 #include <sys/socket.h>
 #include <stdio.h>
 #include <signal.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -10,18 +8,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <linux/limits.h>
-#include "mime.h"
-#include "files.h"
 #include "http.h"
 
 #define MAX_EVENTS 6
 #define QLEN              32
 
-
-
 int passivesock(const  char *service, const char *transport, int qlen);
-
 
 int server(int puerto) {
     signal(SIGPIPE, SIG_IGN);
@@ -30,10 +22,10 @@ int server(int puerto) {
     snprintf(service, sizeof(service), "%d", puerto);
     int server_fd = passivesock(service,transport, QLEN);
 
-    printf("FD Server: (fd: %d)\n", server_fd);
+    printf("FD Server (fd: %d)\n", server_fd);
 
     int epoll_fd = epoll_create1(0);
-	printf("FD Epol: %d\n", epoll_fd);
+	printf("FD Epol %d\n", epoll_fd);
 
 
     struct epoll_event ev = {
@@ -56,25 +48,25 @@ int server(int puerto) {
 		if(current_fd == server_fd) {
                 	int client_fd = accept4(server_fd, NULL, NULL,SOCK_NONBLOCK);
 			if(client_fd<0){
-				perror("error en el accept");
+				perror("Error en el accept cliente nuevo");
 			}else{
                 		ev.events = EPOLLIN;
                 		ev.data.fd = client_fd;
                 		epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
-
                 		printf("Nuevo cliente (fd: %d)\n", client_fd);
             		}
 		}
 
             else {
-		printf("Continuacion del cliente\n");
+		printf("Continuacion del cliente (fd:%d)\n",current_fd);
                 char buffer[256];
 		ssize_t bytes_read = read(current_fd, buffer, sizeof(buffer) - 1);
-
 			if (bytes_read > 0) {
     				buffer[bytes_read] = '\0';
     				printf("Mensaje recibido (fd: %d):\n%s\n", current_fd, buffer);
+
 				response_HTTP(current_fd, buffer);
+
 				epoll_ctl(epoll_fd, EPOLL_CTL_DEL, current_fd, NULL);
                 		close(current_fd);
                 		printf("Cliente respondido y desconectado (fd: %d)\n\n", current_fd);
@@ -111,12 +103,12 @@ int passivesock(const char *service, const char *transport, int qlen){
 	status = getaddrinfo(NULL,service,&hints,&rp);
 
 	if (status != 0){
-		perror("error en getaddrinfo \n");
+		perror("Error en getaddrinfo");
 		exit(EXIT_FAILURE);
 			}
 	s = socket(rp->ai_family, rp->ai_socktype | SOCK_NONBLOCK, rp->ai_protocol);
 	if (s < 0 ){
-		perror("error en fd del socket\n");
+		perror("Error en fd del socket");
 		exit(EXIT_FAILURE);
 	}
 
@@ -124,20 +116,15 @@ int passivesock(const char *service, const char *transport, int qlen){
         setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
 	if(bind(s, rp->ai_addr, rp->ai_addrlen) < 0){
-		perror("error en el bind");
+		perror("Error en el bind");
 		exit(EXIT_FAILURE);
 		}
 
 	freeaddrinfo(rp);
 
 	if(listen(s, qlen)<0){
-		perror("error en el listen");
+		perror("Error en el listen");
 		exit(EXIT_FAILURE);
 		}
-
-
 	return s;
-
 }
-
-
