@@ -10,34 +10,40 @@
 
 
 static const char *not_foundr = "HTTP/1.1 404 Not Found\r\n"
-                         "Content-Length: 13\r\n"
-                         "\r\n"
-                         "404 Not Found";
+                         	"Content-Length: 13\r\n"
+				"Connection: close\r\n"
+                         	"\r\n"
+                         	"404 Not Found";
 
 static const char *forbiddenr = "HTTP/1.1 403 Forbidden\r\n"
-                         "Content-Length: 13\r\n"
-                         "\r\n"
-                         "403 Forbidden";
+                         	"Content-Length: 13\r\n"
+				"Connection: close\r\n"
+                         	"\r\n"
+                         	"403 Forbidden";
 
 static const char *ok_response ="HTTP/1.1 200 OK\r\n"
-                         "Content-Type: %s\r\n"
-                         "Content-Length: %ld\r\n"
-                         "\r\n";
+                         	"Content-Type: %s\r\n"
+                         	"Content-Length: %ld\r\n"
+				"Connection: close\r\n"
+                         	"\r\n";
 
 static const char *bad_request="HTTP/1.1 400 Bad Request\r\n"
                              	"Content-Length: 15\r\n"
+				"Connection: close\r\n"
                              	"\r\n"
                              	"400 Bad Request";
 
 static const char *method_not_allowed = "HTTP/1.1 405 Method Not Allowed\r\n"
                              		"Content-Length: 22\r\n"
+					"Connection: close\r\n"
                              		"\r\n"
                              		"405 Method Not Allowed";
 
 static const char *Error = "HTTP/1.1 500 Internal Server Error\r\n"
-                             "Content-Length: 25\r\n"
-                             "\r\n"
-                             "500 Internal Server Error";
+                           "Content-Length: 25\r\n"
+			   "Connection: close\r\n"
+                           "\r\n"
+                           "500 Internal Server Error";
 
 int parse(const char *buffer, char *path, int sizepath){
 	char buffer_copy[256];
@@ -68,11 +74,11 @@ int parse(const char *buffer, char *path, int sizepath){
                                         }
                                 }
 			if(host){
+			 strncpy(path, path_receive, sizepath);
                           printf("Método: %s\n", method);
                           printf("Ruta:  %s\n", path);
                           printf("Protocol %s\n", protocol);
 			  printf("Host Validado");
-			  strncpy(path, path_receive, sizepath);
 				return 200;
 			}else{
 				return 400;}
@@ -139,7 +145,6 @@ void response_HTTP(int current_fd, const char *buffer){
 			snprintf(header, sizeof(header), ok_response, mime_type, st.st_size);
 
 			int w=write(current_fd, header, strlen(header));
-
 			if (w <= 0) {
 					perror("error");
             				break;}
