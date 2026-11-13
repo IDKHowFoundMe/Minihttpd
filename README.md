@@ -15,7 +15,7 @@ Servidor web HTTP/1.1 para Linux, modular y simple, escrito en C. Usa epoll con 
 ## Limitaciones
 - Solo método GET
 - Sin HTTPS/TLS
-- Sin conexiones persistentes (*keep-alive*): se cierra la conexión tras cada respuesta
+- Sin conexiones persistentes (*keep-alive*): se cierra la conexión tras cada respuesta Connection:close
 
 ## Estructura del proyecto
 
@@ -39,6 +39,7 @@ Servidor web HTTP/1.1 para Linux, modular y simple, escrito en C. Usa epoll con 
 **Compilación y ejecución**
 
 El proyecto incluye un `Makefile` para automatizar todo:
+
 *En la carpeta raiz:*
 ```bash
 # Compilar
@@ -95,7 +96,7 @@ Cliente respondido y desconectado (fd: 5)
 2. El bucle de eventos espera actividad con epoll_wait.
 3. Si hay un cliente nuevo, se acepta con accept y se registra en epoll.
 4. Si un cliente envía datos, se lee y se parsea la petición.
-5. Se busca su ruta con realpath() y se valida que el archivo este dentro de www/, se determina su MIME y se envía la respuesta al cliente.
+5. Se busca la ruta del archivo con realpath() y se valida que el archivo este dentro de www/, se determina su MIME y se envía la respuesta al cliente.
 6. Se cierra la conexión y se elimina el fd de epoll.
 
 
