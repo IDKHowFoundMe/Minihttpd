@@ -1,5 +1,6 @@
 #include <sys/socket.h>
 #include <stdio.h>
+#include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,7 +11,7 @@
 #include <netdb.h>
 #include "http.h"
 
-#define MAX_EVENTS 6
+#define MAX_EVENTS 10
 #define QLEN              32
 
 int passivesock(const  char *service, const char *transport, int qlen);
@@ -25,6 +26,10 @@ int server(int puerto) {
     printf("FD Server (fd: %d)\n", server_fd);
 
     int epoll_fd = epoll_create1(0);
+	if(epoll_fd == -1){
+		perror("Error epoll_create1");
+               	exit(EXIT_FAILURE);}
+
 	printf("FD Epol %d\n", epoll_fd);
 
 
@@ -33,32 +38,40 @@ int server(int puerto) {
         .data.fd = server_fd
     };
 
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &ev);
+    if((epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &ev)) == -1){
+		perror("Error epoll_ctl");
+        	exit(EXIT_FAILURE);};
 
 
     struct epoll_event events[MAX_EVENTS];
 
     while (1) {
         int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-
+	if(nfds == -1){
+			if (errno == EINTR) continue;
+			perror("Error en el epolwait");
+			exit(EXIT_FAILURE);
+			}
         for (int i = 0; i < nfds; i++) {
             int current_fd = events[i].data.fd;
-		printf("currentfd %d\n",current_fd);
 
 		if(current_fd == server_fd) {
                 	int client_fd = accept4(server_fd, NULL, NULL,SOCK_NONBLOCK);
 			if(client_fd<0){
-				perror("Error en el accept cliente nuevo");
-			}else{
+				perror("Error en el accept");
+    				continue;
+			}
                 		ev.events = EPOLLIN;
                 		ev.data.fd = client_fd;
-                		epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev);
-                		printf("Nuevo cliente (fd: %d)\n", client_fd);
-            		}
+                		if((epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &ev))<0){
+						perror("Error en el ctl cliente no agregado");
+							close(client_fd);
+							continue;
+				}else{
+					printf("Nuevo cliente (fd: %d)\n", client_fd);
+            			}
 		}
-
-            else {
-		printf("Continuacion del cliente (fd:%d)\n",current_fd);
+            	else {
                 char buffer[256];
 		ssize_t bytes_read = read(current_fd, buffer, sizeof(buffer) - 1);
 			if (bytes_read > 0) {
@@ -70,10 +83,18 @@ int server(int puerto) {
 				epoll_ctl(epoll_fd, EPOLL_CTL_DEL, current_fd, NULL);
                 		close(current_fd);
                 		printf("Cliente respondido y desconectado (fd: %d)\n\n", current_fd);
+			}else if(bytes_read ==0){
+				epoll_ctl(epoll_fd, EPOLL_CTL_DEL, current_fd, NULL);
+                                close(current_fd);
+                                printf("Cliente desconectado correctamente sin envio de datos(fd: %d)\n\n", current_fd);
 			} else {
-        	            	printf("Cliente desconectado o error (fd: %d)\n", current_fd);
+				if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                        		continue;
+                    		}else{
+				perror("Error en read");
                 	    	epoll_ctl(epoll_fd, EPOLL_CTL_DEL, current_fd, NULL);
                     		close(current_fd);
+				printf("Cliente desconectado con error (fd: %d)\n", current_fd);}
                 }
             }
         }

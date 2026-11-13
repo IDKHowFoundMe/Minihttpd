@@ -112,13 +112,12 @@ void response_HTTP(int current_fd, const char *buffer){
                            printf("Error en el directorio local www\n");
 			if(write(current_fd, Error, strlen(Error)) <0){
 				perror("Error al escribir 500");
-                           break;}
+                           }
 				break;
                 case 404:
                          printf("Error en la ruta no existe\n");
                          if(write(current_fd, not_foundr, strlen(not_foundr)) < 0){
 				perror("Error al escribir 404");
-                           	break;
 				}
 				break;
 
@@ -126,7 +125,6 @@ void response_HTTP(int current_fd, const char *buffer){
                         printf("Error la ruta path transversal\n");
                         if(write(current_fd, forbiddenr, strlen(forbiddenr)) < 0){
                          	perror("Error al escribir 403");
-				break;
 				}
 				break;
 
@@ -134,7 +132,7 @@ void response_HTTP(int current_fd, const char *buffer){
                         int file_fd =  file_open(verifiedclient_path, &st);
                         if (file_fd==500){
 					if(write(current_fd, Error, strlen(Error)) < 0 ){
-					 perror("Error al escribir 200");
+					 perror("Error al escribir 500");
 						break;}
 						}
                       	const char *mime_type = mime(verifiedclient_path);
@@ -149,17 +147,22 @@ void response_HTTP(int current_fd, const char *buffer){
 
                         char file_buffer[1024];
                         ssize_t bytes_read_file;
+			while(1){
+                        bytes_read_file = read(file_fd, file_buffer, sizeof(file_buffer));
 
-                        while ((bytes_read_file = read(file_fd, file_buffer, sizeof(file_buffer))) > 0) {
-				if (bytes_read_file <0){
-						perror("Error al leer datos");
-						break;}
-                            ssize_t bytes_written = write(current_fd, file_buffer, bytes_read_file);
-                            if (bytes_written < 0) {
+			if (bytes_read_file <0){
+					perror("Error al leer datos");
+					break;}
+			if(bytes_read_file==0){
+					break;
+					}
+
+                        ssize_t bytes_written = write(current_fd, file_buffer, bytes_read_file);
+                        if (bytes_written < 0) {
                                      perror("Error al escribir envio");
                                      break;
                                      }
-                          }
+			}
                         close(file_fd);
 			break;
 		}
